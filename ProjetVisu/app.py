@@ -32,7 +32,15 @@ app.layout = html.Div([
         dcc.Dropdown(
             id="region-dropdown",
             options=[{"label": region, "value": region} for region in data["Region"].unique()],
-            value=data["Region"].unique().tolist(),  # Valeur par défaut : toutes les régions
+            value=[data["Region"].unique()[0]],  # Valeur par défaut : une seule région sélectionnée
+            multi=True
+        ),
+
+        html.Label("Choisir le pays :"),
+        dcc.Dropdown(
+            id="country-dropdown",
+            options=[{"label": country, "value": country} for country in data["Country"].unique()],
+            value=[data["Country"].unique()[0]],  # Valeur par défaut : un seul pays sélectionné
             multi=True
         ),
 
@@ -45,7 +53,8 @@ app.layout = html.Div([
 
     html.Div([
         dcc.Graph(id="scatter-plot"),
-        dcc.Graph(id="bar-chart")  # Nouveau graphique en barres
+        dcc.Graph(id="bar-chart"),
+        dcc.Graph(id="line-chart")
     ], style={"width": "70%", "display": "inline-block", "padding": "0 20px"})
 ])
 
@@ -56,10 +65,7 @@ app.layout = html.Div([
      Input("region-dropdown", "value")]
 )
 def update_bar_chart(selected_year, selected_regions):
-    # Filtrer les données en fonction de l'année et des régions sélectionnées
     filtered_data = data[(data["Year"] == selected_year) & (data["Region"].isin(selected_regions))]
-
-    # Créer le graphique en barres
     fig = px.bar(
         filtered_data,
         x="Country",
@@ -68,7 +74,6 @@ def update_bar_chart(selected_year, selected_regions):
         color_discrete_sequence=custom_colors,
         title=f"Scores de Bonheur par Pays - Année {selected_year}"
     )
-
     fig.update_layout(template="plotly_white")
     return fig
 
@@ -79,11 +84,8 @@ def update_bar_chart(selected_year, selected_regions):
      Input("region-dropdown", "value"),
      Input("trendline-checkbox", "value")]
 )
-def update_graph(selected_year, selected_regions, show_trendline):
-    # Filtrer les données en fonction de l'année et des régions sélectionnées
+def update_scatter_plot(selected_year, selected_regions, show_trendline):
     filtered_data = data[(data["Year"] == selected_year) & (data["Region"].isin(selected_regions))]
-
-    # Créer le graphique
     fig = px.scatter(
         filtered_data,
         x="Economy (GDP per Capita)",
@@ -93,8 +95,6 @@ def update_graph(selected_year, selected_regions, show_trendline):
         hover_name="Country",
         title=f"Corrélation entre le PIB et le Bonheur - Année {selected_year}"
     )
-
-    # Ajouter une ligne de tendance si l'option est cochée
     if "trendline" in show_trendline:
         fig = px.scatter(
             filtered_data,
@@ -106,7 +106,25 @@ def update_graph(selected_year, selected_regions, show_trendline):
             title=f"Corrélation entre le PIB et le Bonheur - Année {selected_year}",
             trendline="ols"
         )
+    fig.update_layout(template="plotly_white")
+    return fig
 
+# Callback pour mettre à jour le graphique en lignes
+@app.callback(
+    Output("line-chart", "figure"),
+    [Input("country-dropdown", "value"),
+     Input("region-dropdown", "value")]
+)
+def update_line_chart(selected_countries, selected_regions):
+    filtered_data = data[(data["Country"].isin(selected_countries)) | (data["Region"].isin(selected_regions))]
+    fig = px.line(
+        filtered_data,
+        x="Year",
+        y="Happiness Score",
+        color="Country",
+        color_discrete_sequence=custom_colors,
+        title="Évolution du Score de Bonheur pour les Pays et Régions Sélectionnés"
+    )
     fig.update_layout(template="plotly_white")
     return fig
 
