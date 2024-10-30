@@ -13,6 +13,9 @@ data = pd.read_csv(file_path)
 # Initialiser l'application Dash
 app = dash.Dash(__name__)
 
+# Définir la palette de couleurs personnalisée
+custom_colors = ["#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd"]
+
 # Layout de l'application
 app.layout = html.Div([
     html.H1("Tableau de Bord - Corrélation entre PIB et Bonheur"),
@@ -62,6 +65,7 @@ def update_bar_chart(selected_year, selected_regions):
         x="Country",
         y="Happiness Score",
         color="Region",
+        color_discrete_sequence=custom_colors,
         title=f"Scores de Bonheur par Pays - Année {selected_year}"
     )
 
@@ -85,6 +89,7 @@ def update_graph(selected_year, selected_regions, show_trendline):
         x="Economy (GDP per Capita)",
         y="Happiness Score",
         color="Region",
+        color_discrete_sequence=custom_colors,
         hover_name="Country",
         title=f"Corrélation entre le PIB et le Bonheur - Année {selected_year}"
     )
@@ -96,6 +101,7 @@ def update_graph(selected_year, selected_regions, show_trendline):
             x="Economy (GDP per Capita)",
             y="Happiness Score",
             color="Region",
+            color_discrete_sequence=custom_colors,
             hover_name="Country",
             title=f"Corrélation entre le PIB et le Bonheur - Année {selected_year}",
             trendline="ols"
