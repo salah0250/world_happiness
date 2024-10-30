@@ -41,12 +41,34 @@ app.layout = html.Div([
     ], style={"width": "25%", "display": "inline-block", "verticalAlign": "top"}),
 
     html.Div([
-        dcc.Graph(id="scatter-plot")
+        dcc.Graph(id="scatter-plot"),
+        dcc.Graph(id="bar-chart")  # Nouveau graphique en barres
     ], style={"width": "70%", "display": "inline-block", "padding": "0 20px"})
 ])
 
+# Callback pour mettre à jour le graphique en barres
+@app.callback(
+    Output("bar-chart", "figure"),
+    [Input("year-dropdown", "value"),
+     Input("region-dropdown", "value")]
+)
+def update_bar_chart(selected_year, selected_regions):
+    # Filtrer les données en fonction de l'année et des régions sélectionnées
+    filtered_data = data[(data["Year"] == selected_year) & (data["Region"].isin(selected_regions))]
 
-# Callback pour mettre à jour le graphique
+    # Créer le graphique en barres
+    fig = px.bar(
+        filtered_data,
+        x="Country",
+        y="Happiness Score",
+        color="Region",
+        title=f"Scores de Bonheur par Pays - Année {selected_year}"
+    )
+
+    fig.update_layout(template="plotly_white")
+    return fig
+
+# Callback pour mettre à jour le graphique en nuage de points
 @app.callback(
     Output("scatter-plot", "figure"),
     [Input("year-dropdown", "value"),
@@ -81,7 +103,6 @@ def update_graph(selected_year, selected_regions, show_trendline):
 
     fig.update_layout(template="plotly_white")
     return fig
-
 
 # Lancer l'application
 if __name__ == "__main__":
