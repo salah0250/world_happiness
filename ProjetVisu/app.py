@@ -3,6 +3,8 @@ import pandas as pd
 import dash
 from dash import dcc, html, Input, Output, State
 import plotly.express as px
+import plotly.graph_objects as go  # Importer plotly.graph_objects
+from plotly.subplots import make_subplots  # Importer make_subplots
 import dash_bootstrap_components as dbc
 
 # Construire le chemin relatif pour charger les données
@@ -101,7 +103,8 @@ app.layout = dbc.Container([
         dbc.Col([
             dcc.Graph(id="scatter-plot"),
             dcc.Graph(id="bar-chart"),
-            dcc.Graph(id="line-chart")
+            dcc.Graph(id="line-chart"),
+            dcc.Graph(id="pie-chart")  # Nouveau graphique en camembert
         ], width=20 )
     ])
 ])
@@ -183,6 +186,56 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
     map_figure = create_map_figure(regions, happiness_range, countries, year)
 
     return scatter_plot, bar_chart, line_chart, map_figure
+
+
+# Callback pour mettre à jour le graphique en camembert avec sous-graphiques
+@app.callback(
+    Output("pie-chart", "figure"),
+    [Input("country-dropdown", "value"),
+     Input("year-dropdown", "value")]
+)
+def update_pie_chart(selected_countries, selected_year):
+    # Si aucun pays n'est sélectionné, ne rien afficher
+    if not selected_countries:
+        return go.Figure()
+
+    # Créer une figure avec des sous-graphiques de type 'domain' pour chaque pays sélectionné
+    fig = make_subplots(
+        rows=1, cols=len(selected_countries),
+        specs=[[{"type": "domain"}] * len(selected_countries)],
+        subplot_titles=selected_countries
+    )
+
+    # Boucle sur chaque pays sélectionné
+    for i, country in enumerate(selected_countries, 1):
+        # Filtrer les données pour le pays et l'année sélectionnés
+        filtered_data = data[(data["Country"] == country) & (data["Year"] == selected_year)]
+
+        # Vérifier si des données sont disponibles pour le pays et l'année
+        if not filtered_data.empty:
+            factors = filtered_data.iloc[0]  # Première ligne pour le pays sélectionné
+            factors_data = factors[['Economy (GDP per Capita)', 'Family', 'Health (Life Expectancy)', 'Freedom',
+                                    'Trust (Government Corruption)', 'Generosity']]
+
+            # Ajouter un camembert pour chaque pays en tant que sous-graphe
+            fig.add_trace(
+                go.Pie(
+                    labels=factors_data.index,
+                    values=factors_data,
+                    name=country,
+                    marker=dict(colors=custom_colors)
+                ),
+                row=1, col=i
+            )
+
+    # Mettre à jour le layout de la figure
+    fig.update_layout(
+        title="Répartition des Facteurs de Bonheur pour les Pays Sélectionnés",
+        showlegend=True
+    )
+
+    return fig
+
 
 # Lancer l'application
 if __name__ == "__main__":
