@@ -230,7 +230,7 @@ def update_pie_chart(selected_countries, selected_year):
 
     # Mettre à jour le layout de la figure
     fig.update_layout(
-        title="Répartition des Facteurs de Bonheur pour les Pays Sélectionnés",
+        title="Répartition des Facteurs de Bonheur pour les Pays Sélectionnés - Année {year}",
         showlegend=True
     )
 
