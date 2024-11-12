@@ -166,13 +166,26 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
     bar_chart.update_layout(template="plotly_white")
 
     # Pour le graphique en ligne, nous devons filtrer les données sur plusieurs années
-    line_chart_data = data[(data['Happiness Score'] >= happiness_range[0]) & (data['Happiness Score'] <= happiness_range[1])]
+    line_chart_data = data[
+        (data['Happiness Score'] >= happiness_range[0]) & (data['Happiness Score'] <= happiness_range[1])]
+
     if regions:
         line_chart_data = line_chart_data[line_chart_data["Region"].isin(regions)]
+
     if countries:
         line_chart_data = line_chart_data[line_chart_data["Country"].isin(countries)]
+
+    if not regions and not countries:
+        # Sous-ensemble de pays par défaut pour une meilleure visualisation initiale
+        default_countries = ["Switzerland", "Denmark", "Norway", "Canada"]  # Liste de pays à afficher par défaut
+        line_chart_data = line_chart_data[line_chart_data["Country"].isin(default_countries)]
+
     if line_chart_data.empty:
         return scatter_plot, bar_chart, {}, create_map_figure(regions, happiness_range, countries, year)
+
+    # Arrondir les scores de bonheur et convertir les années en int pour une meilleure visualisation
+    line_chart_data['Happiness Score'] = line_chart_data['Happiness Score'].round(2)
+    line_chart_data['Year'] = line_chart_data['Year'].astype(int)
 
     line_chart = px.line(
         line_chart_data,
@@ -181,7 +194,10 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
         color="Country",
         title="Évolution du Score de Bonheur pour les Pays Sélectionnés"
     )
-    line_chart.update_layout(template="plotly_white")
+    line_chart.update_layout(
+        template="plotly_white",
+        xaxis=dict(tickmode='linear', tick0=2015, dtick=1)  # Assurer que les années sont des valeurs entières
+    )
 
     map_figure = create_map_figure(regions, happiness_range, countries, year)
 
