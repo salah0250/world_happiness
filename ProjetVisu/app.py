@@ -12,7 +12,7 @@ file_path = os.path.join("data", "happiness_info.csv")
 data = pd.read_csv(file_path)
 
 # Initialiser l'application Dash avec un thème Bootstrap
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
 
 # Définir la palette de couleurs personnalisée
 custom_colors = ["#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd"]
@@ -56,41 +56,54 @@ def create_map_figure(region_filter, happiness_range, country_filter, year):
     return fig
 
 # Layout de l'application
+# Layout de l'application
 app.layout = dbc.Container([
     html.H1("Tableau de Bord Interactif du Bonheur Mondial", style={'text-align': 'center', 'color': 'darkblue'}),
-    
-    dcc.Graph(id='map', style={'width': '100%', 'height': '70vh'}),
-    
+
+    # La carte prend toute la largeur
+    dbc.Row([
+        dbc.Col(
+            dcc.Graph(id='map', style={'width': '100%', 'height': '70vh'}),
+            width=12  # Prend toute la ligne
+        ),
+        dbc.Col(
+            dbc.Button("Choisir un pays", id="reset-map-button", color="primary", style={'margin-top': '30px'}),
+            width=2  # Le bouton occupe 2 colonnes
+        )
+    ], style={'margin-bottom': '20px'}),  # Ajouter un espacement en bas
+
+    # Filtres (Dropdowns, RangeSlider, etc.)
     dbc.Row([
         dbc.Col([
             html.Label("Choisir l'année :"),
             dcc.Dropdown(
                 id="year-dropdown",
                 options=[{"label": str(year), "value": year} for year in data["Year"].unique()],
-                value=data["Year"].min()
+                value=data["Year"].min(),
+                placeholder="Sélectionnez une année"
             ),
-            html.Label("Filtrer par Région:", style={'font-weight': 'bold'}),
+            html.Label("Filtrer par Région :"),
             dcc.Dropdown(
-                id='region-dropdown',
+                id="region-dropdown",
                 options=[{"label": region, "value": region} for region in data["Region"].unique()],
                 multi=True,
                 placeholder="Sélectionnez une ou plusieurs régions"
             ),
-            html.Label("Filtrer par Pays:", style={'font-weight': 'bold'}),
+            html.Label("Filtrer par Pays :"),
             dcc.Dropdown(
-                id='country-dropdown',
+                id="country-dropdown",
                 options=[{"label": country, "value": country} for country in data["Country"].unique()],
                 multi=True,
                 placeholder="Sélectionnez un ou plusieurs pays"
             ),
-            html.Label("Filtrer par Score de Bonheur:", style={'font-weight': 'bold'}),
+            html.Label("Filtrer par Score de Bonheur :"),
             dcc.RangeSlider(
-                id='happiness-range',
+                id="happiness-range",
                 min=data['Happiness Score'].min(),
                 max=data['Happiness Score'].max(),
                 step=0.5,
                 value=[data['Happiness Score'].min(), data['Happiness Score'].max()],
-                marks={i: str(i) for i in range(int(data['Happiness Score'].min()), int(data['Happiness Score'].max())+1)},
+                marks={i: str(i) for i in range(int(data['Happiness Score'].min()), int(data['Happiness Score'].max()) + 1)},
                 tooltip={"placement": "bottom", "always_visible": True}
             ),
             dcc.Checklist(
@@ -98,45 +111,84 @@ app.layout = dbc.Container([
                 options=[{"label": "Afficher la ligne de tendance", "value": "trendline"}],
                 value=[]
             )
-        ], width=5),
-        
-        dbc.Col([
-            dcc.Graph(id="scatter-plot"),
-            dcc.Graph(id="bar-chart"),
-            dcc.Graph(id="line-chart"),
-            dcc.Graph(id="pie-chart")  # Nouveau graphique en camembert
-        ], width=20 )
+        ], width=3),  # Largeur pour les filtres
+    ], style={'margin-bottom': '20px'}),
+
+    # Les autres visualisations : deux colonnes par ligne
+    dbc.Row([
+        dbc.Col(dcc.Graph(id="scatter-plot"), width=6),  # Première visualisation
+        dbc.Col(dcc.Graph(id="bar-chart"), width=6)     # Deuxième visualisation
+    ], style={'margin-bottom': '20px'}),  # Espacement entre les lignes
+
+    dbc.Row([
+        dbc.Col(dcc.Graph(id="line-chart"), width=6),  # Troisième visualisation
+        dbc.Col(dcc.Graph(id="pie-chart"), width=6)    # Quatrième visualisation
     ])
 ])
+
 
 # Callback combiné
 @app.callback(
     [Output("scatter-plot", "figure"),
      Output("bar-chart", "figure"),
      Output("line-chart", "figure"),
-     Output("map", "figure")],
-    [Input("year-dropdown", "value"), Input("region-dropdown", "value"), Input("country-dropdown", "value"), Input("trendline-checkbox", "value"), Input('map', 'clickData')],
-    [State("year-dropdown", "value"), State("region-dropdown", "value"), State("country-dropdown", "value"), State("happiness-range", "value")]
+     Output("map", "figure"),
+     Output("country-dropdown", "value")],  # Mettre à jour le dropdown des pays
+    [Input("year-dropdown", "value"),
+     Input("region-dropdown", "value"),
+     Input("country-dropdown", "value"),
+     Input("trendline-checkbox", "value"),
+     Input("map", "clickData"),
+     Input("reset-map-button", "n_clicks")],  # Bouton de réinitialisation
+    [State("year-dropdown", "value"),
+     State("region-dropdown", "value"),
+     State("country-dropdown", "value"),
+     State("happiness-range", "value")]
 )
-def update_all_charts(selected_year, selected_regions, selected_countries, show_trendline, clickData, year, regions, countries, happiness_range):
+def update_all_charts(selected_year, selected_regions, selected_countries, show_trendline, clickData, reset_clicks, year, regions, countries, happiness_range):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    if trigger_id == 'map' and clickData:
-        countries = [clickData['points'][0]['location']]
+    # Réinitialisation si le bouton est cliqué
+    if trigger_id == "reset-map-button":
+        countries = []
+        regions = []
+        happiness_range = [data['Happiness Score'].min(), data['Happiness Score'].max()]
+        year = data["Year"].min()
+        filtered_data = data
+        map_figure = create_map_figure(None, happiness_range, None, year)
     else:
-        countries = selected_countries
+        # Initialiser `countries` à une liste vide si elle est `None`
+        if countries is None:
+            countries = []
 
-    if trigger_id == 'region-dropdown':
-        regions = selected_regions
+        # Si un pays est cliqué sur la carte
+        if trigger_id == 'map' and clickData:
+            clicked_country = clickData['points'][0]['location']
+            # Si le pays cliqué est déjà sélectionné, on le dé-sélectionne
+            if clicked_country in countries:
+                countries = [c for c in countries if c != clicked_country]
+            else:
+                countries.append(clicked_country)
 
-    # Mettre à jour les graphiques en fonction des filtres
-    filtered_data = data[(data["Year"] == year) & (data['Happiness Score'] >= happiness_range[0]) & (data['Happiness Score'] <= happiness_range[1])]
-    if regions:
-        filtered_data = filtered_data[filtered_data["Region"].isin(regions)]
-    if countries:
-        filtered_data = filtered_data[filtered_data["Country"].isin(countries)]
+        # Si le filtre de région change, réinitialiser les pays sélectionnés
+        if trigger_id == 'region-dropdown':
+            regions = selected_regions
+            countries = []  # Réinitialisation des pays si la région change
 
+        # Filtrer les données en fonction des sélections
+        filtered_data = data[(data["Year"] == year) &
+                             (data['Happiness Score'] >= happiness_range[0]) &
+                             (data['Happiness Score'] <= happiness_range[1])]
+
+        if regions:
+            filtered_data = filtered_data[filtered_data["Region"].isin(regions)]
+        if countries:
+            filtered_data = filtered_data[filtered_data["Country"].isin(countries)]
+
+        map_figure = create_map_figure(regions, happiness_range, countries, year)
+
+    # Mise à jour des graphiques
     scatter_plot = px.scatter(
         filtered_data,
         x="Economy (GDP per Capita)",
@@ -165,27 +217,18 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
     )
     bar_chart.update_layout(template="plotly_white")
 
-    # Pour le graphique en ligne, nous devons filtrer les données sur plusieurs années
     line_chart_data = data[
-        (data['Happiness Score'] >= happiness_range[0]) & (data['Happiness Score'] <= happiness_range[1])]
+        (data['Happiness Score'] >= happiness_range[0]) &
+        (data['Happiness Score'] <= happiness_range[1])]
 
     if regions:
         line_chart_data = line_chart_data[line_chart_data["Region"].isin(regions)]
-
     if countries:
         line_chart_data = line_chart_data[line_chart_data["Country"].isin(countries)]
 
     if not regions and not countries:
-        # Sous-ensemble de pays par défaut pour une meilleure visualisation initiale
-        default_countries = ["Switzerland", "Denmark", "Norway", "Canada"]  # Liste de pays à afficher par défaut
+        default_countries = ["Switzerland", "Denmark", "Norway", "Canada"]
         line_chart_data = line_chart_data[line_chart_data["Country"].isin(default_countries)]
-
-    if line_chart_data.empty:
-        return scatter_plot, bar_chart, {}, create_map_figure(regions, happiness_range, countries, year)
-
-    # Arrondir les scores de bonheur et convertir les années en int pour une meilleure visualisation
-    line_chart_data['Happiness Score'] = line_chart_data['Happiness Score'].round(2)
-    line_chart_data['Year'] = line_chart_data['Year'].astype(int)
 
     line_chart = px.line(
         line_chart_data,
@@ -196,12 +239,10 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
     )
     line_chart.update_layout(
         template="plotly_white",
-        xaxis=dict(tickmode='linear', tick0=2015, dtick=1)  # Assurer que les années sont des valeurs entières
+        xaxis=dict(tickmode='linear', tick0=2015, dtick=1)
     )
 
-    map_figure = create_map_figure(regions, happiness_range, countries, year)
-
-    return scatter_plot, bar_chart, line_chart, map_figure
+    return scatter_plot, bar_chart, line_chart, map_figure, countries  # Retourner les pays mis à jour
 
 
 # Callback pour mettre à jour le graphique en camembert avec sous-graphiques
