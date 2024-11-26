@@ -66,10 +66,6 @@ app.layout = dbc.Container([
             dcc.Graph(id='map', style={'width': '100%', 'height': '70vh'}),
             width=12  # Prend toute la ligne
         ),
-        dbc.Col(
-            dbc.Button("Choisir un pays", id="reset-map-button", color="primary", style={'margin-top': '30px'}),
-            width=2  # Le bouton occupe 2 colonnes
-        )
     ], style={'margin-bottom': '20px'}),  # Ajouter un espacement en bas
 
     # Filtres (Dropdowns, RangeSlider, etc.)
@@ -138,55 +134,43 @@ app.layout = dbc.Container([
      Input("region-dropdown", "value"),
      Input("country-dropdown", "value"),
      Input("trendline-checkbox", "value"),
-     Input("map", "clickData"),
-     Input("reset-map-button", "n_clicks")],  # Bouton de réinitialisation
+     Input("map", "clickData")],  # Pas de bouton reset
     [State("year-dropdown", "value"),
      State("region-dropdown", "value"),
      State("country-dropdown", "value"),
      State("happiness-range", "value")]
 )
-def update_all_charts(selected_year, selected_regions, selected_countries, show_trendline, clickData, reset_clicks, year, regions, countries, happiness_range):
+def update_all_charts(selected_year, selected_regions, selected_countries, show_trendline, clickData, year, regions, countries, happiness_range):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Réinitialisation si le bouton est cliqué
-    if trigger_id == "reset-map-button":
+    # Initialiser `countries` à une liste vide si elle est `None`
+    if countries is None:
         countries = []
-        regions = []
-        happiness_range = [data['Happiness Score'].min(), data['Happiness Score'].max()]
-        year = data["Year"].min()
-        filtered_data = data
-        map_figure = create_map_figure(None, happiness_range, None, year)
-    else:
-        # Initialiser `countries` à une liste vide si elle est `None`
-        if countries is None:
-            countries = []
 
-        # Si un pays est cliqué sur la carte
-        if trigger_id == 'map' and clickData:
-            clicked_country = clickData['points'][0]['location']
-            # Si le pays cliqué est déjà sélectionné, on le dé-sélectionne
-            if clicked_country in countries:
-                countries = [c for c in countries if c != clicked_country]
-            else:
-                countries.append(clicked_country)
+    # Si un pays est cliqué sur la carte
+    if trigger_id == 'map' and clickData:
+        clicked_country = clickData['points'][0]['location']
+        # Si le pays cliqué est déjà sélectionné, on le dé-sélectionne
+        if clicked_country in countries:
+            countries = [c for c in countries if c != clicked_country]
+        else:
+            countries.append(clicked_country)
 
-        # Si le filtre de région change, réinitialiser les pays sélectionnés
-        if trigger_id == 'region-dropdown':
-            regions = selected_regions
-            countries = []  # Réinitialisation des pays si la région change
+    # Si le filtre de région change, réinitialiser les pays sélectionnés
+    if trigger_id == 'region-dropdown':
+        regions = selected_regions
+        countries = []  # Réinitialisation des pays si la région change
 
-        # Filtrer les données en fonction des sélections
-        filtered_data = data[(data["Year"] == year) &
-                             (data['Happiness Score'] >= happiness_range[0]) &
-                             (data['Happiness Score'] <= happiness_range[1])]
+    # Filtrer les données en fonction des sélections
+    filtered_data = data[(data["Year"] == year) &
+                         (data['Happiness Score'] >= happiness_range[0]) &
+                         (data['Happiness Score'] <= happiness_range[1])]
 
-        if regions:
-            filtered_data = filtered_data[filtered_data["Region"].isin(regions)]
-        if countries:
-            filtered_data = filtered_data[filtered_data["Country"].isin(countries)]
-
-        map_figure = create_map_figure(regions, happiness_range, countries, year)
+    if regions:
+        filtered_data = filtered_data[filtered_data["Region"].isin(regions)]
+    if countries:
+        filtered_data = filtered_data[filtered_data["Country"].isin(countries)]
 
     # Mise à jour des graphiques
     scatter_plot = px.scatter(
@@ -242,7 +226,36 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
         xaxis=dict(tickmode='linear', tick0=2015, dtick=1)
     )
 
-    return scatter_plot, bar_chart, line_chart, map_figure, countries  # Retourner les pays mis à jour
+    map_figure = create_map_figure(regions, happiness_range, countries, year)
+
+    return scatter_plot, bar_chart, line_chart, map_figure, countries  # Mettre à jour le dropdown des pays
+
+
+@app.callback(
+    [Output("region-dropdown", "options"),
+     Output("country-dropdown", "options")],
+    [Input("region-dropdown", "value"),
+     Input("country-dropdown", "value")]
+)
+def update_filter_options(selected_regions, selected_countries):
+    # Si une ou plusieurs régions sont sélectionnées, filtrer les pays
+    if selected_regions:
+        filtered_data = data[data["Region"].isin(selected_regions)]
+        country_options = [{"label": country, "value": country} for country in filtered_data["Country"].unique()]
+    else:
+        country_options = [{"label": country, "value": country} for country in data["Country"].unique()]
+
+    # Si un ou plusieurs pays sont sélectionnés, filtrer les régions
+    if selected_countries:
+        filtered_data = data[data["Country"].isin(selected_countries)]
+        region_options = [{"label": region, "value": region} for region in filtered_data["Region"].unique()]
+    else:
+        region_options = [{"label": region, "value": region} for region in data["Region"].unique()]
+
+    return region_options, country_options
+
+
+
 
 
 # Callback pour mettre à jour le graphique en camembert avec sous-graphiques
