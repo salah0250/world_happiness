@@ -128,49 +128,39 @@ app.layout = dbc.Container([
     [Output("scatter-plot", "figure"),
      Output("bar-chart", "figure"),
      Output("line-chart", "figure"),
-     Output("map", "figure"),
-     Output("country-dropdown", "value")],  # Mettre à jour le dropdown des pays
+     Output("map", "figure")],
     [Input("year-dropdown", "value"),
      Input("region-dropdown", "value"),
      Input("country-dropdown", "value"),
      Input("trendline-checkbox", "value"),
-     Input("map", "clickData")],  # Pas de bouton reset
-    [State("year-dropdown", "value"),
-     State("region-dropdown", "value"),
-     State("country-dropdown", "value"),
-     State("happiness-range", "value")]
+     Input("map", "clickData")],
+    [State("happiness-range", "value")]
 )
-def update_all_charts(selected_year, selected_regions, selected_countries, show_trendline, clickData, year, regions, countries, happiness_range):
+def update_all_charts(selected_year, selected_regions, selected_countries, show_trendline, clickData, happiness_range):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Initialiser `countries` à une liste vide si elle est `None`
-    if countries is None:
-        countries = []
+    # Initialiser `countries` si vide
+    if not selected_countries:
+        selected_countries = []
 
-    # Si un pays est cliqué sur la carte
+    # Ajouter ou retirer un pays en fonction des clics sur la carte
     if trigger_id == 'map' and clickData:
         clicked_country = clickData['points'][0]['location']
-        # Si le pays cliqué est déjà sélectionné, on le dé-sélectionne
-        if clicked_country in countries:
-            countries = [c for c in countries if c != clicked_country]
+        if clicked_country in selected_countries:
+            selected_countries = [c for c in selected_countries if c != clicked_country]
         else:
-            countries.append(clicked_country)
+            selected_countries.append(clicked_country)
 
-    # Si le filtre de région change, réinitialiser les pays sélectionnés
-    if trigger_id == 'region-dropdown':
-        regions = selected_regions
-        countries = []  # Réinitialisation des pays si la région change
-
-    # Filtrer les données en fonction des sélections
-    filtered_data = data[(data["Year"] == year) &
+    # Filtrer les données
+    filtered_data = data[(data["Year"] == selected_year) &
                          (data['Happiness Score'] >= happiness_range[0]) &
                          (data['Happiness Score'] <= happiness_range[1])]
 
-    if regions:
-        filtered_data = filtered_data[filtered_data["Region"].isin(regions)]
-    if countries:
-        filtered_data = filtered_data[filtered_data["Country"].isin(countries)]
+    if selected_regions:
+        filtered_data = filtered_data[filtered_data["Region"].isin(selected_regions)]
+    if selected_countries:
+        filtered_data = filtered_data[filtered_data["Country"].isin(selected_countries)]
 
     # Mise à jour des graphiques
     scatter_plot = px.scatter(
@@ -178,82 +168,63 @@ def update_all_charts(selected_year, selected_regions, selected_countries, show_
         x="Economy (GDP per Capita)",
         y="Happiness Score",
         color="Region",
-        color_discrete_sequence=custom_colors,
         hover_name="Country",
-        title=f"Corrélation entre le PIB et le Bonheur - Année {year}"
+        title=f"Corrélation entre le PIB et le Bonheur - Année {selected_year}"
     )
-    if "trendline" in show_trendline:
-        scatter_plot = px.scatter(
-            filtered_data,
-            x="Economy (GDP per Capita)",
-            y="Happiness Score",
-            color="Region",
-            trendline="ols"
-        )
-    scatter_plot.update_layout(template="plotly_white")
 
     bar_chart = px.bar(
         filtered_data,
         x="Country",
         y="Happiness Score",
         color="Region",
-        title=f"Scores de Bonheur par Pays - Année {year}"
+        title=f"Scores de Bonheur par Pays - Année {selected_year}"
     )
-    bar_chart.update_layout(template="plotly_white")
 
+    # Créer le graphique en ligne
     line_chart_data = data[
         (data['Happiness Score'] >= happiness_range[0]) &
-        (data['Happiness Score'] <= happiness_range[1])]
-
-    if regions:
-        line_chart_data = line_chart_data[line_chart_data["Region"].isin(regions)]
-    if countries:
-        line_chart_data = line_chart_data[line_chart_data["Country"].isin(countries)]
-
-    if not regions and not countries:
+        (data['Happiness Score'] <= happiness_range[1])
+        ]
+    if selected_regions:
+        line_chart_data = line_chart_data[line_chart_data["Region"].isin(selected_regions)]
+    if selected_countries:
+        line_chart_data = line_chart_data[line_chart_data["Country"].isin(selected_countries)]
+    if not selected_regions and not selected_countries:
         default_countries = ["Switzerland", "Denmark", "Norway", "Canada"]
         line_chart_data = line_chart_data[line_chart_data["Country"].isin(default_countries)]
+    if not line_chart_data.empty:
+        line_chart = px.line(
+            line_chart_data,
+            x="Year",
+            y="Happiness Score",
+            color="Country",
+            title="Évolution du Score de Bonheur pour les Pays Sélectionnés"
+        )
+        line_chart.update_layout(
+            template="plotly_white",
+            xaxis=dict(tickmode='linear', tick0=data["Year"].min(), dtick=1)
+        )
+    else:
+        line_chart = px.line(title="Aucune donnée disponible pour les filtres sélectionnés")
 
-    line_chart = px.line(
-        line_chart_data,
-        x="Year",
-        y="Happiness Score",
-        color="Country",
-        title="Évolution du Score de Bonheur pour les Pays Sélectionnés"
-    )
-    line_chart.update_layout(
-        template="plotly_white",
-        xaxis=dict(tickmode='linear', tick0=2015, dtick=1)
-    )
+    map_figure = create_map_figure(selected_regions, happiness_range, selected_countries, selected_year)
 
-    map_figure = create_map_figure(regions, happiness_range, countries, year)
-
-    return scatter_plot, bar_chart, line_chart, map_figure, countries  # Mettre à jour le dropdown des pays
+    return scatter_plot, bar_chart, line_chart, map_figure
 
 
 @app.callback(
-    [Output("region-dropdown", "options"),
-     Output("country-dropdown", "options")],
-    [Input("region-dropdown", "value"),
-     Input("country-dropdown", "value")]
+    Output("country-dropdown", "options"),
+    [Input("region-dropdown", "value")]
 )
-def update_filter_options(selected_regions, selected_countries):
-    # Si une ou plusieurs régions sont sélectionnées, filtrer les pays
+def update_country_options(selected_regions):
+    # Si des régions sont sélectionnées, limiter les pays à ces régions
     if selected_regions:
         filtered_data = data[data["Region"].isin(selected_regions)]
         country_options = [{"label": country, "value": country} for country in filtered_data["Country"].unique()]
     else:
+        # Si aucune région n'est sélectionnée, afficher tous les pays
         country_options = [{"label": country, "value": country} for country in data["Country"].unique()]
-
-    # Si un ou plusieurs pays sont sélectionnés, filtrer les régions
-    if selected_countries:
-        filtered_data = data[data["Country"].isin(selected_countries)]
-        region_options = [{"label": region, "value": region} for region in filtered_data["Region"].unique()]
-    else:
-        region_options = [{"label": region, "value": region} for region in data["Region"].unique()]
-
-    return region_options, country_options
-
+    return country_options
 
 
 
