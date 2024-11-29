@@ -40,7 +40,7 @@ def register_callbacks(app, dashboard):
         # Create visualizations
         world_map = dashboard.create_world_map(year, regions, selected_countries)
         scatter_plot = dashboard.create_scatter_plot(year, regions, selected_countries)
-        regional_trends = dashboard.create_regional_trends(regions)
+        regional_trends = dashboard.create_country_trends(regions, selected_countries)
         bar_chart = dashboard.create_bar_chart(year, regions, selected_countries)
         pie_chart = dashboard.create_pie_chart(year, selected_countries)
         

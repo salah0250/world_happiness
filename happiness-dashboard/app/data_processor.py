@@ -145,46 +145,78 @@ class HappinessDashboard:
      )
     
      return fig
-    def create_bar_chart(self, year, regions=None, countries=None):
-     # Filter data
-     filtered_data = self.data[self.data['Year'] == year].copy()
     
-     if regions:
-        filtered_data = filtered_data[filtered_data['Region'].isin(regions)]
-     if countries:
-        filtered_data = filtered_data[filtered_data['Country'].isin(countries)]
-    
-     # Sort countries by happiness score in descending order
-     filtered_data = filtered_data.sort_values('Happiness Score', ascending=False)
-    
-     # Create bar chart
-     fig = px.bar(
-        filtered_data, 
-        x="Country", 
-        y="Happiness Score",
-        color="Region",
-        title=f"Happiness Scores by Country - {year}",
-        hover_data={
-            "Economy (GDP per Capita)": ":.2f",
-            "Health (Life Expectancy)": ":.2f",
-            "Freedom": ":.2f"
-        }
-     )
-    
-     fig.update_layout(
-        template='plotly_white',
-        xaxis_tickangle=-45,  # Rotate x-axis labels for better readability,
-         yaxis=dict(
-            # Fixer l'échelle avec les valeurs globales min et max
-            range=[0, 8],
-            # Ajouter des lignes de grille pour une meilleure lisibilité
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='lightgray'
+    def create_country_trends(self, regions=None, countries=None):
+        # Calculate global min and max values for the Y-axis
+        global_min = self.data['Happiness Score'].min()
+        global_max = self.data['Happiness Score'].max()
+
+        # Filter data based on selected regions
+        if regions:
+            filtered_data = self.data[self.data['Region'].isin(regions)]
+        else:
+            filtered_data = self.data
+
+        # Filter data based on selected countries
+        if countries:
+            filtered_data = filtered_data[filtered_data['Country'].isin(countries)]
+
+        # Group by country and year
+        country_insights = filtered_data.groupby(['Country', 'Year', 'Region'])['Happiness Score'].mean().reset_index()
+
+        # Filter years to 2015 to 2019
+        country_insights = country_insights[country_insights['Year'].between(2015, 2019)]
+
+        # Ensure 'Year' is integer type
+        country_insights['Year'] = country_insights['Year'].astype(int)
+
+        # Create a color mapping for regions
+        unique_regions = country_insights['Region'].unique()
+        color_map = {region: px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)] for i, region in
+                     enumerate(unique_regions)}
+
+        # Apply color mapping to countries based on their regions
+        country_insights['Color'] = country_insights['Region'].map(color_map)
+
+        # Create line plot with markers
+        fig = px.line(
+            country_insights,
+            x='Year',
+            y='Happiness Score',
+            color='Country',
+            title='Country Happiness Trends',
+            markers=True,
+            hover_data = {'Region': True}
         )
-     )
-    
-     return fig
+
+        # Update traces to use the color mapping
+        for trace in fig.data:
+            country = trace.name
+            region = country_insights[country_insights['Country'] == country]['Region'].values[0]
+            trace.line.color = color_map[region]
+
+        fig.update_layout(
+            template='plotly_white',
+            xaxis=dict(
+                tickmode='linear',
+                dtick=1,
+                tickformat='d',
+                range=[2015, 2019]
+            ),
+            yaxis=dict(
+                range=[global_min, global_max],
+                dtick=0.5,
+                tickformat='d',
+                tickvals=[i for i in range(int(global_min), int(global_max) + 1)],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='lightgray'
+            ),
+            legend_title_text='Country',
+            height=600
+        )
+
+        return fig
 
     def create_pie_chart(self, year, countries=None):
      # Si aucun pays n'est sélectionné ou plus de 4 pays, retournez un message ou un graphique vide
