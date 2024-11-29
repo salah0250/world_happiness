@@ -111,41 +111,6 @@ class HappinessDashboard:
         
         return fig
     
-    def create_regional_trends(self, regions=None):
-    # Calculer les valeurs globales de min et max pour l'axe Y
-     global_min = self.data['Happiness Score'].min()
-     global_max = self.data['Happiness Score'].max()
-
-    # Filter regional insights
-     if regions:
-        filtered_insights = self.regional_insights[self.regional_insights['Region'].isin(regions)]
-     else:
-        filtered_insights = self.regional_insights
-    
-    # Create line plot
-     fig = px.line(
-        filtered_insights, 
-        x='Year', 
-        y='Happiness Score', 
-        color='Region',
-        title='Regional Happiness Trends'
-     )
-    
-     fig.update_layout(
-        template='plotly_white',
-        xaxis=dict(tickmode='linear', dtick=1),
-        yaxis=dict(
-            # Fixer l'échelle avec les valeurs globales min et max
-            range=[global_min, global_max],
-            # Ajouter des lignes de grille pour une meilleure lisibilité
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='lightgray'
-        )
-     )
-    
-     return fig
-    
     def create_country_trends(self, regions=None, countries=None):
         # Calculate global min and max values for the Y-axis
         global_min = self.data['Happiness Score'].min()
@@ -217,6 +182,47 @@ class HappinessDashboard:
         )
 
         return fig
+    
+    def create_bar_chart(self, year, regions=None, countries=None):
+     # Filter data
+     filtered_data = self.data[self.data['Year'] == year].copy()
+    
+     if regions:
+        filtered_data = filtered_data[filtered_data['Region'].isin(regions)]
+     if countries:
+        filtered_data = filtered_data[filtered_data['Country'].isin(countries)]
+    
+     # Sort countries by happiness score in descending order
+     filtered_data = filtered_data.sort_values('Happiness Score', ascending=False)
+    
+     # Create bar chart
+     fig = px.bar(
+        filtered_data, 
+        x="Country", 
+        y="Happiness Score",
+        color="Region",
+        title=f"Happiness Scores by Country - {year}",
+        hover_data={
+            "Economy (GDP per Capita)": ":.2f",
+            "Health (Life Expectancy)": ":.2f",
+            "Freedom": ":.2f"
+        }
+     )
+    
+     fig.update_layout(
+        template='plotly_white',
+        xaxis_tickangle=-45,  # Rotate x-axis labels for better readability,
+         yaxis=dict(
+            # Fixer l'échelle avec les valeurs globales min et max
+            range=[0, 8],
+            # Ajouter des lignes de grille pour une meilleure lisibilité
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='lightgray'
+        )
+     )
+    
+     return fig
 
     def create_pie_chart(self, year, countries=None):
      # Si aucun pays n'est sélectionné ou plus de 4 pays, retournez un message ou un graphique vide
