@@ -9,6 +9,7 @@ Welcome to the Global Happiness Explorer, an interactive dashboard designed to p
   - [Using Docker](#using-docker)
   - [Manual Setup](#manual-setup)
 - [Usage](#usage)
+- [Web Site](#WebSite)
 - [Members](#Members)
 
 
@@ -78,6 +79,10 @@ Once the application is running, you can use the dashboard to explore various as
 - Adjust the happiness range slider to focus on specific - happiness levels.
 - Hover over graphs for more detailed information.
 - Click on map elements for country-specific details.
+
+## Web Site :
+
+https://happiness-dashboard.onrender.com
 
  ## Members :
 
