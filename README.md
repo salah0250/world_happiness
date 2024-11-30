@@ -80,11 +80,11 @@ Once the application is running, you can use the dashboard to explore various as
 - Hover over graphs for more detailed information.
 - Click on map elements for country-specific details.
 
-## Web Site :
+## Web Site
 
 https://happiness-dashboard.onrender.com
 
- ## Members :
+ ## Members
 
  - Salah Eddine ABOULKACIM
  - Zaid LAASRI
