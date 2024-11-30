@@ -113,8 +113,8 @@ class HappinessDashboard:
     
     def create_country_trends(self, regions=None, countries=None):
         # Calculate global min and max values for the Y-axis
-        global_min = self.data['Happiness Score'].min()
-        global_max = self.data['Happiness Score'].max()
+        global_min = self.data['Happiness Score'].min() - 0.5
+        global_max = self.data['Happiness Score'].max() + 0.5
 
         # Filter data based on selected regions
         if regions:
@@ -166,7 +166,7 @@ class HappinessDashboard:
                 tickmode='linear',
                 dtick=1,
                 tickformat='d',
-                range=[2015, 2019]
+                range=[2014.8, 2019.2]
             ),
             yaxis=dict(
                 range=[global_min, global_max],
