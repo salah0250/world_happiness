@@ -225,45 +225,58 @@ class HappinessDashboard:
      return fig
 
     def create_pie_chart(self, year, countries=None):
-     # Si aucun pays n'est sélectionné ou plus de 4 pays, retournez un message ou un graphique vide
-     if not countries:
-         return go.Figure()
-     
-     # Limiter à 4 pays maximum
-     countries = countries[:4]
-    
-     # Prepare the figure
-     fig = go.Figure()
-    
-     # Custom color palette
-     colors = ['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3', 
-              '#fdb462', '#b3de69', '#fccde5', '#d9d9d9', '#bc80bd']
-    
-    # Add pie charts for selected countries
-     for i, country in enumerate(countries):
-        # Filter data for specific country and year
-        country_data = self.data[(self.data['Country'] == country) & (self.data['Year'] == year)]
-        
-        if not country_data.empty:
-            # Extract happiness factors
-            factors = ['Economy (GDP per Capita)', 'Family', 'Health (Life Expectancy)', 
-                       'Freedom', 'Trust (Government Corruption)', 'Generosity']
-            values = country_data[factors].values[0]
-            
-            # Add pie chart
-            fig.add_trace(go.Pie(
-                labels=factors,
-                values=values,
-                name=country,
-                title=f"{country} - ({year})",
-                domain={'x': [i/len(countries), (i+1)/len(countries)]}
-            ))
-    
-     # Update layout to show all pie charts side by side
-     fig.update_layout(
-        title=f"Happiness Factors Breakdown - {year} (Max 4 Countries)",
-        showlegend=True,
-        height=500
-     )
-    
-     return fig
+        # If no countries selected or more than 3 countries, return empty figure
+        if not countries:
+            return go.Figure()
+
+        # Limit to 3 countries maximum
+        countries = countries[:3]
+
+        # Prepare the figure
+        fig = go.Figure()
+
+        # Custom color palette
+        colors = ['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3',
+                  '#fdb462', '#b3de69', '#fccde5', '#d9d9d9', '#bc80bd']
+
+        # Calculate domain positions with spacing
+        chart_width = 0.25  # Width of each pie chart
+        spacing = 0.1  # Space between charts
+        total_width = len(countries) * chart_width + (len(countries) - 1) * spacing
+        start_pos = (1 - total_width) / 2  # Center the charts horizontally
+
+        # Add pie charts for selected countries
+        for i, country in enumerate(countries):
+            # Filter data for specific country and year
+            country_data = self.data[(self.data['Country'] == country) & (self.data['Year'] == year)]
+
+            if not country_data.empty:
+                # Extract happiness factors
+                factors = ['Economy (GDP per Capita)', 'Family', 'Health (Life Expectancy)',
+                           'Freedom', 'Trust (Government Corruption)', 'Generosity']
+                values = country_data[factors].values[0]
+
+                # Calculate position for current pie chart
+                x_start = start_pos + i * (chart_width + spacing)
+                x_end = x_start + chart_width
+
+                # Add pie chart
+                fig.add_trace(go.Pie(
+                    labels=factors,
+                    values=values,
+                    name=country,
+                    title=f"{country} - ({year})",
+                    domain={'x': [x_start, x_end]},
+                    marker=dict(colors=colors),
+                    hoverinfo='label+percent+name'
+                ))
+
+        # Update layout to show all pie charts side by side
+        fig.update_layout(
+            title=f"Happiness Factors Breakdown - {year} (Max 3 Countries)",
+            showlegend=True,
+            height=500,
+            margin=dict(t=50, b=50, l=50, r=50)
+        )
+
+        return fig
