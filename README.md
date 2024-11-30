@@ -32,7 +32,7 @@ The Global Happiness Explorer is a data visualization tool that helps users unde
 1. **Clone the repository:**
    ```sh
    git clone https://github.com/salah0250/world_happiness
-   cd world_happiness/happiness-dashboard*
+   cd world_happiness/happiness-dashboard
    ```
 2. **Build and run the Docker container:**
    ```sh
